@@ -1,0 +1,28 @@
+# Joins the Mac app parts in installers/mac-<version>/ and publishes them as release mac-<version>
+# with one file, MajdShield-mac.tar.xz (the Mac app, unsigned: installed with the Terminal line in the notes).
+name: Publish Mac app
+on:
+  push:
+    paths: ['installers/mac-*/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Join the parts and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir=$(ls -d installers/mac-* | sort -V | tail -1)
+          ver=${dir#installers/mac-}
+          cat $(ls "$dir"/MajdShield-mac.tar.xz.part* | sort -V) > MajdShield-mac.tar.xz
+          echo "sha256 $(sha256sum MajdShield-mac.tar.xz | cut -d' ' -f1)"
+          notes="Majd Shield for Mac $ver (test version, Apple-chip Macs). Install: open Terminal and paste the line from the website / README."
+          if gh release view "mac-$ver" >/dev/null 2>&1; then
+            gh release upload "mac-$ver" MajdShield-mac.tar.xz --clobber
+          else
+            gh release create "mac-$ver" MajdShield-mac.tar.xz --title "Majd Shield for Mac $ver (test)" --prerelease --notes "$notes"
+          fi
