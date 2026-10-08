@@ -1,0 +1,28 @@
+# Joins the installer parts in installers/windows-<version>/ and publishes them as a GitHub release
+# with one file, MajdShield-Setup.exe (the website's Windows button downloads "latest").
+name: Publish Windows installer
+on:
+  push:
+    paths: ['installers/windows-*/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Join the parts and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir=$(ls -d installers/windows-* | sort -V | tail -1)
+          ver=${dir#installers/windows-}
+          cat $(ls "$dir"/MajdShield-Setup.exe.part* | sort -V) > MajdShield-Setup.exe
+          echo "Joined $(stat -c%s MajdShield-Setup.exe) bytes, sha256 $(sha256sum MajdShield-Setup.exe | cut -d' ' -f1)"
+          if gh release view "v$ver" >/dev/null 2>&1; then
+            gh release upload "v$ver" MajdShield-Setup.exe --clobber
+          else
+            gh release create "v$ver" MajdShield-Setup.exe --title "Majd Shield for Windows $ver" --latest \
+              --notes "Majd Shield for Windows $ver. Run the installer, then follow the setup. Adds Majd Ad Blocker to Chrome and Brave automatically, and your logo on the salah lock screen."
+          fi
